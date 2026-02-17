@@ -11,7 +11,10 @@
     <aside class="wa-sidebar">
       <header class="wa-side-header">
         <div class="title">banlay gupto kotha</div>
-        <input id="search" placeholder="Search or start new chat" />
+        <div class="search-row">
+          <input id="search" placeholder="Search username..." autocomplete="off" />
+          <button id="searchBtn">🔍</button>
+        </div>
       </header>
       <ul id="users" class="contacts"></ul>
     </aside>
@@ -27,7 +30,7 @@
       </div>
     </section>
   </div>
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script src="/js/chat.js"></script>
 </body>
 </html>

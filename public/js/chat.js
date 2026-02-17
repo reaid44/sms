@@ -50,11 +50,12 @@ socket.on('message_sent', (m) => {
 });
 
 async function loadUsers(filter) {
-  const res = await fetch('/api/users');
+  const query = filter ? `?q=${encodeURIComponent(filter)}` : '';
+  const res = await fetch(`/api/users${query}`);
   const users = await res.json();
   const ul = document.getElementById('users');
   ul.innerHTML = '';
-  users.filter(u => u.username !== me).filter(u => !filter || u.username.toLowerCase().includes(filter)).forEach(u => {
+  users.filter(u => u.username !== me).forEach(u => {
     const li = el('li');
     const avatar = el('div', 'avatar', u.username[0].toUpperCase());
     const meta = el('div', 'meta');
@@ -83,6 +84,22 @@ document.getElementById('send').onclick = () => {
   document.getElementById('content').value = '';
 };
 
-document.getElementById('search').addEventListener('input', (e) => loadUsers(e.target.value.trim().toLowerCase()));
+async function doSearch() {
+  const query = document.getElementById('search').value.trim();
+  if (!query) return loadUsers();
+  await loadUsers(query);
+  const ul = document.getElementById('users');
+  const firstContact = ul.querySelector('li');
+  if (firstContact) {
+    const username = firstContact.querySelector('.name').textContent;
+    selectChat(username);
+  }
+}
+
+document.getElementById('searchBtn').onclick = doSearch;
+
+document.getElementById('search').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doSearch();
+});
 
 loadUsers();

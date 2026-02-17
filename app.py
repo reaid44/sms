@@ -10,7 +10,7 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'change_this_secret')
 DB_PATH = './data.sqlite'
 
 app = Flask(__name__, static_folder='public', static_url_path='')
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
+socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -61,7 +61,11 @@ def login():
 def users():
     db = get_db()
     cur = db.cursor()
-    cur.execute('SELECT id, username FROM users')
+    q = request.args.get('q', '').strip()
+    if q:
+        cur.execute('SELECT id, username FROM users WHERE username LIKE ? COLLATE NOCASE ORDER BY username LIMIT 50', (f'%{q}%',))
+    else:
+        cur.execute('SELECT id, username FROM users')
     rows = cur.fetchall()
     out = [{'id': r['id'], 'username': r['username']} for r in rows]
     return jsonify(out)
@@ -88,13 +92,17 @@ def handle_connect(auth):
     if isinstance(auth, dict):
         token = auth.get('token')
     if not token:
+        print('[CONNECT] auth error: no token')
         return False
     payload = verify_token(token)
     if not payload:
+        print('[CONNECT] auth error: invalid token')
         return False
     user_id = payload.get('id')
+    username = payload.get('username')
     # store mapping
     online[user_id] = request.sid
+    print(f'[CONNECT] user_id={user_id} username={username} sid={request.sid} | online={list(online.items())}')
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -109,8 +117,6 @@ def handle_disconnect():
 
 @socketio.on('private_message')
 def on_private_message(data):
-    token = None
-    # token comes via auth at connect; we'll use sid lookup to find user
     sid = request.sid
     sender_id = None
     for uid, s in online.items():
@@ -118,31 +124,40 @@ def on_private_message(data):
             sender_id = uid
             break
     if not sender_id:
+        print(f'[ERROR] sender_id not found for sid {sid}')
         return
     to_username = data.get('toUsername')
     content = data.get('content')
     if not to_username or not content:
+        print(f'[ERROR] missing toUsername or content')
         return
     db = get_db()
     cur = db.cursor()
     cur.execute('SELECT id FROM users WHERE username = ?', (to_username,))
     row = cur.fetchone()
     if not row:
+        print(f'[ERROR] receiver username {to_username} not found')
         return
     receiver_id = row['id']
     cur.execute('INSERT INTO messages(sender_id, receiver_id, content, created_at) VALUES (?,?,?,?)',
                 (sender_id, receiver_id, content, datetime.utcnow().isoformat()))
     db.commit()
     msg = {'sender_id': sender_id, 'receiver_id': receiver_id, 'content': content, 'created_at': datetime.utcnow().isoformat()}
+    print(f'[MSG] {sender_id} → {receiver_id}: {content}')
     # emit to sender
-    emit('message_sent', msg, to=sid)
+    emit('message_sent', msg)
     # emit to receiver if online
     recv_sid = online.get(receiver_id)
+    print(f'[ONLINE] {receiver_id} sid={recv_sid}, all online={list(online.items())}')
     if recv_sid:
-        # send from username
         cur.execute('SELECT username FROM users WHERE id = ?', (sender_id,))
         srow = cur.fetchone()
-        emit('message', {'from': srow['username'], 'content': content, 'created_at': msg['created_at']}, to=recv_sid)
+        sender_username = srow['username'] if srow else 'Unknown'
+        msg_data = {'from': sender_username, 'content': content, 'created_at': msg['created_at']}
+        print(f'[EMIT] sending to {recv_sid}: {msg_data}')
+        socketio.emit('message', msg_data, to=recv_sid)
+    else:
+        print(f'[OFFLINE] receiver {receiver_id} ({to_username}) is offline')
 
 @socketio.on('history')
 def on_history(data):

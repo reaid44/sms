@@ -7,7 +7,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Segoe UI,Roboto
 .wa-sidebar{width:320px;background:#f6f6f6;border-right:1px solid #ddd;display:flex;flex-direction:column}
 .wa-side-header{padding:16px;border-bottom:1px solid #e6e6e6}
 .wa-side-header .title{font-weight:700;color:var(--wa-dark);margin-bottom:8px}
-.wa-side-header input{width:100%;padding:10px;border-radius:20px;border:1px solid #ddd;background:white}
+.search-row{display:flex;gap:8px}
+.search-row input{flex:1;padding:10px;border-radius:20px;border:1px solid #ddd;background:white}
+.search-row button{background:var(--wa-green);color:white;border:none;padding:8px 12px;border-radius:50%;cursor:pointer;font-size:16px}
+.search-row button:hover{background:#1fa855}
 .contacts{flex:1;overflow:auto;padding:0;margin:0}
 .contacts li{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer}
 .contacts li .avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#ddd,#bbb);display:inline-flex;align-items:center;justify-content:center;margin-right:12px;font-weight:700;color:#333}
